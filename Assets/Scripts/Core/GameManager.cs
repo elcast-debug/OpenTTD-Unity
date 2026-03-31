@@ -261,8 +261,8 @@ namespace OpenTTDUnity
             IsInitializing = false;
             Date  = GameDate.Start;
             Speed = _startingSpeed;
+            SetState(GameState.Playing); // set state BEFORE ApplySpeed so timeScale isn't stuck at 0
             ApplySpeed(Speed);
-            SetState(GameState.Playing);
 
             Debug.Log("[GameManager] ── Initialization complete ──");
             OnGameReady?.Invoke();
