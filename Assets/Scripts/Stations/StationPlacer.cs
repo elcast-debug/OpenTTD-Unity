@@ -144,7 +144,7 @@ namespace OpenTTDUnity
             if (station == null) return;
 
             // Deduct cost
-            EconomyManager.Instance?.Spend(stationCost);
+            EconomyManager.Instance?.Spend(stationCost, "Station construction");
 
             // Register with GridManager
             GridManager.Instance?.SetStationOnTile(tile.x, tile.y, station);

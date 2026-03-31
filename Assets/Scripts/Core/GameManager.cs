@@ -229,7 +229,7 @@ namespace OpenTTDUnity
                 IsInitializing = false;
                 yield break;
             }
-            _gridManager.Initialize();
+            _gridManager.InitialiseGrid();
 
             // Step 2: Terrain heights
             yield return null;

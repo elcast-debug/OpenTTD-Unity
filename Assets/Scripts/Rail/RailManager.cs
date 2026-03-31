@@ -185,7 +185,7 @@ namespace OpenTTDUnity
             rails[pos] = segment;
 
             // Deduct cost
-            EconomyManager.Instance?.Spend(costPerSegment);
+            EconomyManager.Instance?.Spend(costPerSegment, "Rail segment");
 
             // Register with GridManager
             GridManager.Instance?.SetRailOnTile(x, z, segment);

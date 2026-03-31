@@ -208,6 +208,20 @@ namespace OpenTTDUnity
             }
         }
 
+        /// <summary>Bulk-set heights from a 2D array [x, z] without firing events.</summary>
+        public void BulkSetHeights(int[,] heights)
+        {
+            int w = Mathf.Min(heights.GetLength(0), width);
+            int h = Mathf.Min(heights.GetLength(1), height);
+            for (int z = 0; z < h; z++)
+            for (int x = 0; x < w; x++)
+            {
+                var tile = GetTile(x, z);
+                if (tile != null)
+                    tile.Height = Mathf.Clamp(heights[x, z], Constants.MinHeight, Constants.MaxHeight);
+            }
+        }
+
         /// <summary>Bulk-set types without firing per-tile events.</summary>
         public void BulkSetTypes(int[] xCoords, int[] zCoords, TileType[] types)
         {
@@ -217,6 +231,16 @@ namespace OpenTTDUnity
                 var tile = GetTile(xCoords[i], zCoords[i]);
                 if (tile != null)
                     tile.Type = types[i];
+            }
+        }
+
+        /// <summary>Bulk-set types using a function that receives each Tile and returns its new type.</summary>
+        public void BulkSetTypes(System.Func<Tile, TileType> classifier)
+        {
+            for (int i = 0; i < tiles.Length; i++)
+            {
+                if (tiles[i] != null)
+                    tiles[i].Type = classifier(tiles[i]);
             }
         }
 

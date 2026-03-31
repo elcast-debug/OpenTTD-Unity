@@ -299,7 +299,7 @@ namespace OpenTTDUnity
 
             // Deduct cost
             long totalCost = (long)modifiedTiles.Count * Constants.TerrainModifyCost;
-            EconomyManager.Instance?.DeductMoney(totalCost);
+            EconomyManager.Instance?.Spend(totalCost, "Terrain modification");
 
             // Regenerate affected chunks
             foreach (Vector2Int chunkCoord in _dirtyChunks)
