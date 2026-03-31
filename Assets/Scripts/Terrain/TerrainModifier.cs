@@ -163,7 +163,7 @@ namespace OpenTTDUnity
 
         private void PerformRaycast()
         {
-            Ray ray = _camera.ScreenPointToRay(Input.mousePosition);
+            Ray ray = _camera.ScreenPointToRay(InputHelper.mousePosition);
             _isHovering = false;
             _hoveredTile = new Vector2Int(-1, -1);
 
@@ -224,11 +224,11 @@ namespace OpenTTDUnity
         {
             if (!_isHovering) return;
 
-            bool raise = Input.GetMouseButtonDown(0) && _mode == ModifierMode.Raise;
-            bool lower = Input.GetMouseButtonDown(1) || (Input.GetMouseButtonDown(0) && _mode == ModifierMode.Lower);
+            bool raise = InputHelper.GetMouseButtonDown(0) && _mode == ModifierMode.Raise;
+            bool lower = InputHelper.GetMouseButtonDown(1) || (InputHelper.GetMouseButtonDown(0) && _mode == ModifierMode.Lower);
 
             // Allow right-click to lower regardless of mode when hovering
-            if (Input.GetMouseButtonDown(1) && _mode == ModifierMode.Raise)
+            if (InputHelper.GetMouseButtonDown(1) && _mode == ModifierMode.Raise)
             {
                 lower = true;
                 raise = false;

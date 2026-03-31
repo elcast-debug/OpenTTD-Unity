@@ -73,7 +73,7 @@ namespace OpenTTDUnity
         {
             if (!isActive) return;
 
-            if (Input.GetMouseButtonDown(1) || Input.GetKeyDown(KeyCode.Escape))
+            if (InputHelper.GetMouseButtonDown(1) || InputHelper.GetKeyDown(UnityEngine.InputSystem.Key.Escape))
             {
                 Deactivate();
                 return;
@@ -84,7 +84,7 @@ namespace OpenTTDUnity
             {
                 UpdateGhost(hoveredTile.Value);
 
-                if (Input.GetMouseButtonDown(0) &&
+                if (InputHelper.GetMouseButtonDown(0) &&
                     EventSystem.current != null &&
                     !EventSystem.current.IsPointerOverGameObject())
                 {
@@ -300,7 +300,7 @@ namespace OpenTTDUnity
         private Vector2Int? GetTileUnderMouse()
         {
             if (mainCamera == null) return null;
-            Ray ray = mainCamera.ScreenPointToRay(Input.mousePosition);
+            Ray ray = mainCamera.ScreenPointToRay(InputHelper.mousePosition);
             if (Physics.Raycast(ray, out RaycastHit hit, 1000f, terrainLayer))
             {
                 if (GridManager.Instance != null)

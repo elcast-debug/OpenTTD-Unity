@@ -176,7 +176,7 @@ namespace OpenTTDUnity
         {
             if (costPanel == null || !costPanel.gameObject.activeSelf) return;
 
-            Vector2 cursorPos = Input.mousePosition;
+            Vector2 cursorPos = InputHelper.mousePosition;
             costPanel.position = cursorPos + cursorOffset;
 
             // Keep label inside screen bounds
@@ -232,7 +232,7 @@ namespace OpenTTDUnity
 
             // Raycast from cursor to world to get tile position
             Ray ray = _mainCamera != null
-                ? _mainCamera.ScreenPointToRay(Input.mousePosition)
+                ? _mainCamera.ScreenPointToRay(InputHelper.mousePosition)
                 : new Ray(Vector3.zero, Vector3.down);
 
             if (Physics.Raycast(ray, out RaycastHit hit, 500f, LayerMask.GetMask("Terrain")))

@@ -88,7 +88,7 @@ namespace OpenTTDUnity
             if (currentMode == PlacerMode.Inactive) return;
 
             // Cancel via right-click or Escape
-            if (Input.GetMouseButtonDown(1) || Input.GetKeyDown(KeyCode.Escape))
+            if (InputHelper.GetMouseButtonDown(1) || InputHelper.GetKeyDown(UnityEngine.InputSystem.Key.Escape))
             {
                 CancelDrag();
                 return;
@@ -141,7 +141,7 @@ namespace OpenTTDUnity
             Vector2Int? hoveredTile = GetTileUnderMouse();
 
             // Mouse down — start drag
-            if (Input.GetMouseButtonDown(0) && hoveredTile.HasValue)
+            if (InputHelper.GetMouseButtonDown(0) && hoveredTile.HasValue)
             {
                 isDragging  = true;
                 dragStart   = hoveredTile.Value;
@@ -150,7 +150,7 @@ namespace OpenTTDUnity
             }
 
             // Mouse held — update preview
-            if (isDragging && Input.GetMouseButton(0) && hoveredTile.HasValue)
+            if (isDragging && InputHelper.GetMouseButton(0) && hoveredTile.HasValue)
             {
                 if (hoveredTile.Value != dragCurrent)
                 {
@@ -160,7 +160,7 @@ namespace OpenTTDUnity
             }
 
             // Mouse up — commit
-            if (isDragging && Input.GetMouseButtonUp(0))
+            if (isDragging && InputHelper.GetMouseButtonUp(0))
             {
                 CommitPlacement();
                 isDragging = false;
@@ -378,7 +378,7 @@ namespace OpenTTDUnity
         {
             if (mainCamera == null) return null;
 
-            Ray ray = mainCamera.ScreenPointToRay(Input.mousePosition);
+            Ray ray = mainCamera.ScreenPointToRay(InputHelper.mousePosition);
             if (Physics.Raycast(ray, out RaycastHit hit, 1000f, terrainLayer))
             {
                 Vector3 worldPos = hit.point;

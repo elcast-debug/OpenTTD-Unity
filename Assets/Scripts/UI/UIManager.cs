@@ -159,13 +159,13 @@ namespace OpenTTDUnity
             if (EventSystem.current != null && EventSystem.current.currentSelectedGameObject != null)
                 return;
 
-            if (Input.GetKeyDown(KeyCode.Escape))  { SetMode(InputMode.Normal);       return; }
-            if (Input.GetKeyDown(KeyCode.R))        { SetMode(InputMode.BuildRail);    return; }
-            if (Input.GetKeyDown(KeyCode.S))        { SetMode(InputMode.BuildStation); return; }
-            if (Input.GetKeyDown(KeyCode.D))        { SetMode(InputMode.BuildDepot);   return; }
-            if (Input.GetKeyDown(KeyCode.T))        { SetMode(InputMode.TerraformUp);  return; }
-            if (Input.GetKeyDown(KeyCode.G))        { SetMode(InputMode.TerraformDown);return; }
-            if (Input.GetKeyDown(KeyCode.B))        { SetMode(InputMode.Bulldoze);     return; }
+            if (InputHelper.GetKeyDown(UnityEngine.InputSystem.Key.Escape))  { SetMode(InputMode.Normal);       return; }
+            if (InputHelper.GetKeyDown(UnityEngine.InputSystem.Key.R))        { SetMode(InputMode.BuildRail);    return; }
+            if (InputHelper.GetKeyDown(UnityEngine.InputSystem.Key.S))        { SetMode(InputMode.BuildStation); return; }
+            if (InputHelper.GetKeyDown(UnityEngine.InputSystem.Key.D))        { SetMode(InputMode.BuildDepot);   return; }
+            if (InputHelper.GetKeyDown(UnityEngine.InputSystem.Key.T))        { SetMode(InputMode.TerraformUp);  return; }
+            if (InputHelper.GetKeyDown(UnityEngine.InputSystem.Key.G))        { SetMode(InputMode.TerraformDown);return; }
+            if (InputHelper.GetKeyDown(UnityEngine.InputSystem.Key.B))        { SetMode(InputMode.Bulldoze);     return; }
         }
 
         // ─── Panel Management ─────────────────────────────────────────────────────

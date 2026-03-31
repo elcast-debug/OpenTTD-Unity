@@ -417,15 +417,15 @@ namespace OpenTTDUnity
 
         private void HandleGlobalInput()
         {
-            if (Input.GetKeyDown(KeyCode.Space))
+            if (InputHelper.GetKeyDown(UnityEngine.InputSystem.Key.Space))
                 TogglePause();
 
             // Number keys 1/2/3 for speed — only when not paused
             if (State != GameState.Paused)
             {
-                if (Input.GetKeyDown(KeyCode.Alpha1)) SetSpeed(GameSpeed.Normal);
-                if (Input.GetKeyDown(KeyCode.Alpha2)) SetSpeed(GameSpeed.Fast);
-                if (Input.GetKeyDown(KeyCode.Alpha3)) SetSpeed(GameSpeed.Fastest);
+                if (InputHelper.GetKeyDown(UnityEngine.InputSystem.Key.Digit1)) SetSpeed(GameSpeed.Normal);
+                if (InputHelper.GetKeyDown(UnityEngine.InputSystem.Key.Digit2)) SetSpeed(GameSpeed.Fast);
+                if (InputHelper.GetKeyDown(UnityEngine.InputSystem.Key.Digit3)) SetSpeed(GameSpeed.Fastest);
             }
         }
 

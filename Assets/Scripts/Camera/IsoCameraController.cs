@@ -1,4 +1,5 @@
 using UnityEngine;
+using UnityEngine.InputSystem;
 
 namespace OpenTTDUnity
 {
@@ -124,10 +125,10 @@ namespace OpenTTDUnity
             float dx = 0f, dz = 0f;
 
             // WASD + Arrow key support
-            if (Input.GetKey(KeyCode.W) || Input.GetKey(KeyCode.UpArrow))    dz += 1f;
-            if (Input.GetKey(KeyCode.S) || Input.GetKey(KeyCode.DownArrow))  dz -= 1f;
-            if (Input.GetKey(KeyCode.D) || Input.GetKey(KeyCode.RightArrow)) dx += 1f;
-            if (Input.GetKey(KeyCode.A) || Input.GetKey(KeyCode.LeftArrow))  dx -= 1f;
+            if (InputHelper.GetKey(Key.W) || InputHelper.GetKey(Key.UpArrow))    dz += 1f;
+            if (InputHelper.GetKey(Key.S) || InputHelper.GetKey(Key.DownArrow))  dz -= 1f;
+            if (InputHelper.GetKey(Key.D) || InputHelper.GetKey(Key.RightArrow)) dx += 1f;
+            if (InputHelper.GetKey(Key.A) || InputHelper.GetKey(Key.LeftArrow))  dx -= 1f;
 
             if (dx == 0f && dz == 0f) return;
 
@@ -136,7 +137,7 @@ namespace OpenTTDUnity
             // past when zoomed out
             speed *= _camera.orthographicSize / Constants.CameraDefaultOrthoSize;
 
-            if (Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift))
+            if (InputHelper.GetKey(Key.LeftShift) || InputHelper.GetKey(Key.RightShift))
                 speed *= _panShiftMultiplier;
 
             // Rotate the pan direction by the current camera yaw so WASD is
@@ -158,15 +159,15 @@ namespace OpenTTDUnity
         private void HandleMiddleMousePan()
         {
             // Start drag
-            if (Input.GetMouseButtonDown(2))
+            if (InputHelper.GetMouseButtonDown(2))
             {
                 _isDragging = true;
-                _dragOriginScreen = Input.mousePosition;
+                _dragOriginScreen = InputHelper.mousePosition;
                 _dragOriginWorld  = ScreenToWorldXZ(_dragOriginScreen);
             }
 
             // End drag
-            if (Input.GetMouseButtonUp(2))
+            if (InputHelper.GetMouseButtonUp(2))
             {
                 _isDragging = false;
             }
@@ -174,19 +175,19 @@ namespace OpenTTDUnity
             // Continue drag
             if (_isDragging)
             {
-                Vector3 currentWorldPos = ScreenToWorldXZ(Input.mousePosition);
+                Vector3 currentWorldPos = ScreenToWorldXZ(InputHelper.mousePosition);
                 Vector3 delta = _dragOriginWorld - currentWorldPos;
                 Vector3 pos   = transform.position + delta;
                 pos = ClampPosition(pos);
                 transform.position = pos;
                 // Update origin to current position to avoid jumpy acceleration
-                _dragOriginWorld = ScreenToWorldXZ(Input.mousePosition);
+                _dragOriginWorld = ScreenToWorldXZ(InputHelper.mousePosition);
             }
         }
 
         private void HandleZoom()
         {
-            float scroll = Input.GetAxis("Mouse ScrollWheel");
+            float scroll = InputHelper.scrollWheel;
             if (Mathf.Abs(scroll) < 0.0001f) return;
 
             _targetOrthoSize -= scroll * _zoomSpeed;
@@ -202,8 +203,8 @@ namespace OpenTTDUnity
         private void HandleRotation()
         {
             // Q rotates counter-clockwise (add 90°), E clockwise (subtract 90°)
-            if (Input.GetKeyDown(KeyCode.Q)) _targetYaw = NormalizeAngle(_targetYaw + 90f);
-            if (Input.GetKeyDown(KeyCode.E)) _targetYaw = NormalizeAngle(_targetYaw - 90f);
+            if (InputHelper.GetKeyDown(Key.Q)) _targetYaw = NormalizeAngle(_targetYaw + 90f);
+            if (InputHelper.GetKeyDown(Key.E)) _targetYaw = NormalizeAngle(_targetYaw - 90f);
 
             // Smooth interpolation — DOTween-free, plain Mathf.LerpAngle
             _currentYaw = Mathf.LerpAngle(_currentYaw, _targetYaw,
