@@ -6,98 +6,85 @@ namespace OpenTTDUnity
     /// <summary>
     /// Isometric camera controller for an orthographic camera.
     ///
-    /// Rotation is always a multiple of 90° (North, East, South, West view)
-    /// and is interpolated smoothly using <see cref="Mathf.LerpAngle"/>.
-    /// Pan direction is relative to the current camera facing so WASD always
-    /// moves in screen-space terms, not world-space.
+    /// Tracks a separate <c>_pivot</c> (the world point the camera looks at).
+    /// WASD / middle-mouse-drag move the pivot; the camera is always offset
+    /// behind and above it based on yaw, pitch, and distance.
     ///
-    /// Attach this component to the Camera rig root GameObject.
-    /// The Camera component should be a child (or this same GameObject).
+    /// Rotation snaps in 90° increments and is smoothly interpolated.
     /// </summary>
     [RequireComponent(typeof(Camera))]
     public class IsoCameraController : MonoBehaviour
     {
-        // -------------------------------------------------------
-        // Inspector-exposed configuration
-        // -------------------------------------------------------
+        // ── Inspector ───────────────────────────────────────────────────
 
         [Header("References")]
-        [SerializeField, Tooltip("The orthographic camera. Defaults to Camera on this GameObject.")]
+        [SerializeField, Tooltip("The orthographic camera. Auto-assigned if empty.")]
         private Camera _camera;
 
         [Header("Pan")]
         [SerializeField, Tooltip("World-unit pan speed at 1× zoom.")]
         private float _panSpeed = Constants.CameraPanSpeed;
 
-        [SerializeField, Tooltip("Multiplier applied when holding Shift to pan faster.")]
+        [SerializeField, Tooltip("Multiplier when holding Shift.")]
         private float _panShiftMultiplier = 2f;
 
         [Header("Zoom")]
-        [SerializeField, Tooltip("Orthographic size change per scroll-wheel unit.")]
+        [SerializeField, Tooltip("Ortho-size change per scroll unit.")]
         private float _zoomSpeed = Constants.CameraZoomSpeed;
 
-        [SerializeField]
-        private float _minOrthoSize = Constants.CameraMinOrthoSize;
-
-        [SerializeField]
-        private float _maxOrthoSize = Constants.CameraMaxOrthoSize;
+        [SerializeField] private float _minOrthoSize = Constants.CameraMinOrthoSize;
+        [SerializeField] private float _maxOrthoSize = Constants.CameraMaxOrthoSize;
 
         [Header("Rotation")]
-        [SerializeField, Tooltip("Lerp factor per frame for rotation smoothing (higher = snappier).")]
+        [SerializeField, Tooltip("Lerp speed for rotation smoothing.")]
         private float _rotationLerpSpeed = 8f;
 
         [Header("Isometric Angles")]
-        [SerializeField, Tooltip("Pitch of the camera from horizontal (classic TTD uses ~30°).")]
+        [SerializeField, Tooltip("Pitch angle (classic TTD ≈ 30°).")]
         private float _pitchAngle = 30f;
 
-        // -------------------------------------------------------
-        // State
-        // -------------------------------------------------------
+        [SerializeField, Tooltip("Distance behind the pivot (for orthographic this just needs to be enough to not clip).")]
+        private float _cameraDistance = 100f;
 
-        // Target Y rotation (in 90° increments: 0, 90, 180, 270)
+        // ── State ───────────────────────────────────────────────────────
+
+        /// <summary>World-space point the camera looks at (XZ plane).</summary>
+        private Vector3 _pivot;
+
         private float _targetYaw;
-        // Current smoothed Y rotation
         private float _currentYaw;
+        private float _targetOrthoSize;
 
         // Middle-mouse drag
-        private bool  _isDragging;
-        private Vector3 _dragOriginScreen;
+        private bool _isDragging;
         private Vector3 _dragOriginWorld;
 
-        // Grid world bounds for clamping
+        // World bounds for clamping
         private float _worldWidth;
         private float _worldDepth;
 
-        // Smooth zoom target
-        private float _targetOrthoSize;
-
-        // -------------------------------------------------------
-        // Unity lifecycle
-        // -------------------------------------------------------
+        // ── Lifecycle ───────────────────────────────────────────────────
 
         private void Awake()
         {
             if (_camera == null) _camera = GetComponent<Camera>();
-
             if (!_camera.orthographic)
             {
-                Debug.LogWarning("[IsoCameraController] Camera is not orthographic — forcing it on.");
+                Debug.LogWarning("[IsoCameraController] Forcing orthographic projection.");
                 _camera.orthographic = true;
             }
         }
 
         private void Start()
         {
-            // World size from constants
             _worldWidth = Constants.GridWidth  * Constants.TileSize;
             _worldDepth = Constants.GridHeight * Constants.TileSize;
 
-            // Position camera at the centre of the map
-            float cx = _worldWidth  * 0.5f;
-            float cz = _worldDepth  * 0.5f;
-            transform.position = new Vector3(cx, 0f, cz);
+            // Centre of the map
+            _pivot = new Vector3(_worldWidth * 0.5f,
+                                 Constants.MaxHeight * Constants.HeightStep * 0.5f,
+                                 _worldDepth * 0.5f);
 
-            // Initial angles — face from the North-East (classic TTD default)
             _targetYaw  = 45f;
             _currentYaw = _targetYaw;
 
@@ -116,15 +103,12 @@ namespace OpenTTDUnity
             ApplyTransform(snap: false);
         }
 
-        // -------------------------------------------------------
-        // Input handlers
-        // -------------------------------------------------------
+        // ── Keyboard pan ────────────────────────────────────────────────
 
         private void HandleKeyboardPan()
         {
             float dx = 0f, dz = 0f;
 
-            // WASD + Arrow key support
             if (InputHelper.GetKey(Key.W) || InputHelper.GetKey(Key.UpArrow))    dz += 1f;
             if (InputHelper.GetKey(Key.S) || InputHelper.GetKey(Key.DownArrow))  dz -= 1f;
             if (InputHelper.GetKey(Key.D) || InputHelper.GetKey(Key.RightArrow)) dx += 1f;
@@ -133,57 +117,52 @@ namespace OpenTTDUnity
             if (dx == 0f && dz == 0f) return;
 
             float speed = _panSpeed;
-            // Scale pan speed proportionally to zoom level so the map doesn't fly
-            // past when zoomed out
             speed *= _camera.orthographicSize / Constants.CameraDefaultOrthoSize;
 
             if (InputHelper.GetKey(Key.LeftShift) || InputHelper.GetKey(Key.RightShift))
                 speed *= _panShiftMultiplier;
 
-            // Rotate the pan direction by the current camera yaw so WASD is
-            // always relative to the screen, not world axes.
+            // Rotate input by current yaw so WASD is screen-relative
             float yawRad = _currentYaw * Mathf.Deg2Rad;
-            float cos    = Mathf.Cos(yawRad);
-            float sin    = Mathf.Sin(yawRad);
+            float cos = Mathf.Cos(yawRad);
+            float sin = Mathf.Sin(yawRad);
 
             float worldDx = dx * cos - dz * sin;
             float worldDz = dx * sin + dz * cos;
 
-            Vector3 pos = transform.position;
-            pos.x += worldDx * speed * Time.unscaledDeltaTime;
-            pos.z += worldDz * speed * Time.unscaledDeltaTime;
-            pos = ClampPosition(pos);
-            transform.position = pos;
+            _pivot.x += worldDx * speed * Time.unscaledDeltaTime;
+            _pivot.z += worldDz * speed * Time.unscaledDeltaTime;
+
+            ClampPivot();
         }
+
+        // ── Middle-mouse drag pan ───────────────────────────────────────
 
         private void HandleMiddleMousePan()
         {
-            // Start drag
             if (InputHelper.GetMouseButtonDown(2))
             {
                 _isDragging = true;
-                _dragOriginScreen = InputHelper.mousePosition;
-                _dragOriginWorld  = ScreenToWorldXZ(_dragOriginScreen);
+                _dragOriginWorld = ScreenToWorldXZ(InputHelper.mousePosition);
             }
 
-            // End drag
             if (InputHelper.GetMouseButtonUp(2))
             {
                 _isDragging = false;
             }
 
-            // Continue drag
             if (_isDragging)
             {
-                Vector3 currentWorldPos = ScreenToWorldXZ(InputHelper.mousePosition);
-                Vector3 delta = _dragOriginWorld - currentWorldPos;
-                Vector3 pos   = transform.position + delta;
-                pos = ClampPosition(pos);
-                transform.position = pos;
-                // Update origin to current position to avoid jumpy acceleration
+                Vector3 current = ScreenToWorldXZ(InputHelper.mousePosition);
+                Vector3 delta = _dragOriginWorld - current;
+                _pivot.x += delta.x;
+                _pivot.z += delta.z;
+                ClampPivot();
                 _dragOriginWorld = ScreenToWorldXZ(InputHelper.mousePosition);
             }
         }
+
+        // ── Zoom ────────────────────────────────────────────────────────
 
         private void HandleZoom()
         {
@@ -192,123 +171,89 @@ namespace OpenTTDUnity
 
             _targetOrthoSize -= scroll * _zoomSpeed;
             _targetOrthoSize  = Mathf.Clamp(_targetOrthoSize, _minOrthoSize, _maxOrthoSize);
-
-            // Smooth zoom towards target
-            _camera.orthographicSize = Mathf.Lerp(
-                _camera.orthographicSize,
-                _targetOrthoSize,
-                Time.unscaledDeltaTime * 12f);
         }
+
+        // ── Rotation ────────────────────────────────────────────────────
 
         private void HandleRotation()
         {
-            // Q rotates counter-clockwise (add 90°), E clockwise (subtract 90°)
             if (InputHelper.GetKeyDown(Key.Q)) _targetYaw = NormalizeAngle(_targetYaw + 90f);
             if (InputHelper.GetKeyDown(Key.E)) _targetYaw = NormalizeAngle(_targetYaw - 90f);
 
-            // Smooth interpolation — DOTween-free, plain Mathf.LerpAngle
             _currentYaw = Mathf.LerpAngle(_currentYaw, _targetYaw,
                 Time.unscaledDeltaTime * _rotationLerpSpeed);
 
-            // Snap to final angle when very close to avoid infinite lerp
             if (Mathf.Abs(Mathf.DeltaAngle(_currentYaw, _targetYaw)) < 0.1f)
                 _currentYaw = _targetYaw;
         }
 
-        // -------------------------------------------------------
-        // Transform application
-        // -------------------------------------------------------
+        // ── Apply transform ─────────────────────────────────────────────
 
         /// <summary>
-        /// Rebuilds the camera rig transform from the current pivot (transform.position)
-        /// plus the desired yaw and pitch.  The Camera is offset along its local -Z
-        /// so it looks down at the pivot point.
+        /// Positions and rotates the camera based on the pivot, yaw, and pitch.
+        /// For an orthographic camera the distance doesn't affect perspective,
+        /// but it must be far enough to not clip the terrain.
         /// </summary>
         private void ApplyTransform(bool snap)
         {
             float yaw = snap ? _targetYaw : _currentYaw;
-            // Smoothly advance ortho size even outside zoom input
-            _camera.orthographicSize = Mathf.Lerp(
-                _camera.orthographicSize, _targetOrthoSize,
-                snap ? 1f : Time.unscaledDeltaTime * 12f);
 
-            // Build the rotation: first pitch down, then yaw around world-Y
+            // Smooth zoom
+            _camera.orthographicSize = snap
+                ? _targetOrthoSize
+                : Mathf.Lerp(_camera.orthographicSize, _targetOrthoSize,
+                              Time.unscaledDeltaTime * 12f);
+
+            // Build rotation: pitch down, then yaw
             Quaternion rot = Quaternion.Euler(_pitchAngle, yaw, 0f);
-            _camera.transform.rotation = rot;
+            transform.rotation = rot;
 
-            // Position the camera above and behind the pivot
-            // The offset distance is chosen so that at the default ortho size
-            // the pivot sits comfortably in frame.
-            float dist = _camera.orthographicSize * 4f;
-            Vector3 pivotPos = transform.position;
-            // Add a fixed world-Y height so the camera is always above terrain
-            pivotPos.y = Constants.MaxHeight * Constants.HeightStep;
-            _camera.transform.position = pivotPos + rot * new Vector3(0f, 0f, -dist);
+            // Position camera behind the pivot along the view direction
+            transform.position = _pivot - rot * Vector3.forward * _cameraDistance;
         }
 
-        // -------------------------------------------------------
-        // Helpers
-        // -------------------------------------------------------
+        // ── Helpers ─────────────────────────────────────────────────────
 
-        /// <summary>
-        /// Projects a screen point onto the XZ world plane (at world Y = 0),
-        /// using the camera's current inverse view-projection.
-        /// </summary>
-        private Vector3 ScreenToWorldXZ(Vector3 screenPos)
-        {
-            Ray ray = _camera.ScreenPointToRay(screenPos);
-            // Intersect with the Y=0 plane
-            if (Mathf.Abs(ray.direction.y) > 0.0001f)
-            {
-                float t = -ray.origin.y / ray.direction.y;
-                if (t > 0f) return ray.origin + ray.direction * t;
-            }
-            // Fallback: just use the ray origin projected flat
-            return new Vector3(ray.origin.x, 0f, ray.origin.z);
-        }
-
-        private Vector3 ClampPosition(Vector3 pos)
+        private void ClampPivot()
         {
             float margin = 5f * Constants.TileSize;
-            pos.x = Mathf.Clamp(pos.x, -margin, _worldWidth  + margin);
-            pos.z = Mathf.Clamp(pos.z, -margin, _worldDepth  + margin);
-            return pos;
+            _pivot.x = Mathf.Clamp(_pivot.x, -margin, _worldWidth + margin);
+            _pivot.z = Mathf.Clamp(_pivot.z, -margin, _worldDepth + margin);
         }
 
-        private static float NormalizeAngle(float a)
+        private Vector3 ScreenToWorldXZ(Vector2 screenPos)
         {
-            a %= 360f;
-            if (a < 0f) a += 360f;
-            return a;
+            Ray ray = _camera.ScreenPointToRay(screenPos);
+            // Intersect with Y = _pivot.y plane
+            if (Mathf.Abs(ray.direction.y) > 0.0001f)
+            {
+                float t = (_pivot.y - ray.origin.y) / ray.direction.y;
+                if (t > 0f) return ray.origin + ray.direction * t;
+            }
+            return new Vector3(ray.origin.x, _pivot.y, ray.origin.z);
         }
 
-        // -------------------------------------------------------
-        // Public API
-        // -------------------------------------------------------
+        private static float NormalizeAngle(float angle)
+        {
+            angle %= 360f;
+            if (angle < 0f) angle += 360f;
+            return angle;
+        }
 
-        /// <summary>
-        /// Instantly moves the camera pivot to look at a world-space position.
-        /// </summary>
+        // ── Public API ──────────────────────────────────────────────────
+
+        /// <summary>Focus the camera on a specific world position.</summary>
         public void FocusOn(Vector3 worldPos)
         {
-            Vector3 pos   = transform.position;
-            pos.x = worldPos.x;
-            pos.z = worldPos.z;
-            transform.position = ClampPosition(pos);
+            _pivot = new Vector3(worldPos.x, _pivot.y, worldPos.z);
+            ClampPivot();
         }
 
-        /// <summary>
-        /// Instantly moves the camera pivot to look at a tile grid coordinate.
-        /// </summary>
+        /// <summary>Focus on a tile coordinate.</summary>
         public void FocusOnTile(int tx, int tz)
         {
             if (GridManager.Instance != null)
                 FocusOn(GridManager.Instance.GridToWorld(tx, tz));
         }
-
-        /// <summary>
-        /// Returns the current camera orthographic size.
-        /// </summary>
-        public float OrthoSize => _camera.orthographicSize;
     }
 }
